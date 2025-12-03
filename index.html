@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Game with Vercel</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #ui { position: absolute; top: 10px; left: 10px; color: white; font-family: Arial; z-index: 1000; }
+  </style>
+</head>
+<body>
+  <div id="ui">Quest: Explore 100m (0m/100m)</div>
+
+  <!-- Three.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/examples/js/controls/PointerLockControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/examples/js/controls/FirstPersonControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.155.0/examples/js/controls/OrbitControls.js"></script>
+
+  <!-- Noise.js for terrain -->
+  <script src="https://cdn.jsdelivr.net/npm/noisejs@1.0.0/noise.min.js"></script>
+
+  <!-- Kenney Assets (Grass Texture) -->
+  <script>
+    const texture = new THREE.TextureLoader().load('https://cdn.jsdelivr.net/gh/kenney/assets@1.0.0/texture/grass/grass_1.png');
+  </script>
+
+  <script>
+    // Scene Setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Terrain
+    const terrainGeometry = new THREE.PlaneGeometry(200, 200);
+    const terrainMaterial = new THREE.MeshPhongMaterial({ map: texture });
+    const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+    terrain.rotation.x = -Math.PI / 2;
+    scene.add(terrain);
+
+    // Skybox
+    const skyboxGeometry = new THREE.BoxGeometry(200, 200, 200);
+    const skyboxMaterial = new THREE.MeshBasicMaterial({ color: 0x87CEEB, side: THREE.BackSide });
+    const skybox = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+    scene.add(skybox);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(0, 100, 0);
+    scene.add(directionalLight);
+
+    // Player Controls
+    const controls = new THREE.PointerLockControls(camera, document.body);
+    const controller = controls;
+
+    // Monster
+    const enemy = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xff0000 })
+    );
+    enemy.position.set(50, 2, 50);
+    scene.add(enemy);
+
+    // Quest System
+    let quest = { text: "Explore 100m", distance: 100 };
+    let playerDistance = 0;
+
+    // UI Update
+    function updateUI() {
+      const ui = document.getElementById('ui');
+      ui.textContent = `Quest: ${quest.text} (${playerDistance.toFixed(1)}m/${quest.distance}m)`;
+    }
+
+    // Movement
+    const moveSpeed = 0.1;
+    const mouseSensitivity = 0.002;
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') controller.moveForward(moveSpeed);
+      if (e.code === 'KeyS') controller.moveForward(-moveSpeed);
+      if (e.code === 'KeyA') controller.moveRight(-moveSpeed);
+      if (e.code === 'KeyD') controller.moveRight(moveSpeed);
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      const delta = {
+        x: e.movementX * mouseSensitivity,
+        y: e.movementY * mouseSensitivity
+      };
+      controller.look(delta.x, delta.y);
+    });
+
+    // Monster AI
+    function updateEnemy() {
+      const playerPos = camera.position;
+      const enemyPos = enemy.position;
+      const distance = playerPos.distanceTo(enemyPos);
+      if (distance > 10) {
+        const direction = new THREE.Vector3().subVectors(playerPos, enemyPos).normalize();
+        enemy.position.add(direction.multiplyScalar(0.05));
+      }
+    }
+
+    // Animation Loop
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Update Player Distance
+      playerDistance = camera.position.distanceTo(new THREE.Vector3(0, 0, 0));
+      updateUI();
+
+      // Update Monster
+      updateEnemy();
+
+      // Render
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Resize Handling
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
